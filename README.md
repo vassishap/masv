@@ -35,12 +35,12 @@ A FASTA file containing all sequences classified as "NOISY VARIANT" or "SPURIOUS
 The "transparency report." This is a tab-delimited log file detailing the classification for every unique sequence.
 > It lists the sequence's final description ("VARIANT", "NOISY VARIANT", etc.), its closest neighbor (if any), and the perfect k-mer, imperfect k-mer, and length difference metrics used for the decision.
 
-## A Note on Thresholds (The -f parameter)
+## A note on thresholds (The *-f* parameter)
 
-The core thresholds (4, 4, 2) used by MASV are not arbitrary. They were empirically derived from an in silico simulation.  
-Method: 1,500 "child" sequences were generated from a "parent" Russula ITS sequence.  Each child contained exactly one random SNP (n=750) or InDel (n=750).  
-Analysis: The k-mer profile of each child was compared to the parent, and the maximum observed difference for each metric (d[p], d[im], and d[net]) was recorded.  
-Result:  
+The core thresholds (4, 4, 2) used by MASV are not arbitrary. They were empirically derived from an *in silico* simulation (see details in the publication).  
+**Method**: 1,500 "child" sequences were generated from a "parent" *Russula* sp. ITS2 sequence.  Each child contained exactly one random SNP (n=750) or InDel (n=750).  
+**Analysis**: The k-mer profile of each child was compared to the parent, and the maximum observed difference for each metric (d[p], d[im], and d[net]) was recorded.  
+**Result**:  
 
 The maximum observed distortion from a single nucleotide error defined the base thresholds :
 *  Max Perfect k-mer difference (d[p]): 4 
