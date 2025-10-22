@@ -3,9 +3,9 @@
 MASV is a lightweight, transparent Python script for high-resolution denoising of amplicon sequencing data. It is designed to efficiently separate true, low-abundance sequence variants from sequencing noise. 
 > It is particularly well-suited for high-resolution analyses, such as deep sequencing of single organisms from cultures or herbarium specimens, where the goal is to resolve the full spectrum of intra-species and allelic variation.
 ## Installation
-No installation is required. MASV is a single standalone script.
-Simply download the masv100.py file.
-The script is written for Python 3 and only uses standard libraries.
+The script is written for Python 3 and only uses standard libraries.  
+No installation is required. MASV is a single standalone script.  
+Simply download the masv100.py file.  
 ## Usage
 Run the script from your terminal. The two required arguments are the input FASTA file (-i) and the degree of freedom (-f).
 ```bash
