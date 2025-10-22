@@ -1,8 +1,8 @@
 # ######################################################################################
 #
-# fast_denoise.py
+# masv100.py
 #
-# Version: MASV v.5.3.0
+# Version: MASV v.1.0.0
 #
 # Description:
 #   This script performs denoising of sequencing data from a FASTA file.
@@ -260,7 +260,7 @@ def progress_bar(i):
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    print('\nscript MASV v.5.3.0')
+    print('\nscript MASV v.1.0.0')
     start_time = time.time()
 
     # Get arguments from command line
@@ -319,3 +319,4 @@ if __name__ == "__main__":
     total_time = end_time - start_time
     print(f"\nDetected sequence variants: {len(variants)}")
     print(f"Script execution time: {total_time:.2f} seconds ({total_time / 60:.2f} minutes)\n")
+
