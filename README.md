@@ -12,11 +12,11 @@ Full information on MASV's algorithm workflow can be found in this publication: 
 ## Usage
 Run the script from your terminal. The two required arguments are the input FASTA file (-i) and the degree of freedom (-f).
 ```bash
-python MASV_final.py -i <input.fasta> -f <degree_of_freedom>
+python masv100.py -i <input.fasta> -f <degree_of_freedom>
 ```
 Example:
 ```bash
-python MASV_final.py -i sample_data.fasta -f 1
+python masv100.py -i sample_data.fasta -f 1
 ```
 **Arguments**  
 1. -i, --input_fasta (Required): Path to the input FASTA file.  
