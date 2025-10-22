@@ -6,6 +6,8 @@ MASV is a lightweight, transparent Python script for high-resolution denoising o
 The script is written for Python 3 and only uses standard libraries.  
 No installation is required. MASV is a single standalone script.  
 Simply download the masv100.py file.  
+## General workflow  
+![My Project Logo](./logo.png)
 ## Usage
 Run the script from your terminal. The two required arguments are the input FASTA file (-i) and the degree of freedom (-f).
 ```bash
