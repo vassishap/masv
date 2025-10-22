@@ -8,7 +8,7 @@ No installation is required. MASV is a single standalone script.
 Simply download the masv100.py file.  
 ## General workflow  
 ![My Project Logo](./logo.png)  
-Full information on MASV's algorithm workflow can be found in this publication: link
+> Full information on MASV's algorithm workflow can be found in this publication: link
 ## Usage
 Run the script from your terminal. The two required arguments are the input FASTA file (-i) and the degree of freedom (-f).
 ```bash
