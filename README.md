@@ -35,19 +35,22 @@ A FASTA file containing all sequences classified as "NOISY VARIANT" or "SPURIOUS
 The "transparency report." This is a tab-delimited log file detailing the classification for every unique sequence.
 > It lists the sequence's final description ("VARIANT", "NOISY VARIANT", etc.), its closest neighbor (if any), and the perfect k-mer, imperfect k-mer, and length difference metrics used for the decision.
 
-## A note on thresholds (The *-f* parameter)
+## A note on thresholds (-f parameter)
 
 The core thresholds (4, 4, 2) used by MASV are not arbitrary. They were empirically derived from an *in silico* simulation (see details in the publication).  
 **Method**: 1,500 "child" sequences were generated from a "parent" *Russula* sp. ITS2 sequence.  Each child contained exactly one random SNP (n=750) or InDel (n=750).  
-**Analysis**: The k-mer profile of each child was compared to the parent, and the maximum observed difference for each metric (d[p], d[im], and d[net]) was recorded.  
-**Result**:  
+**Analysis**: Each of the 1,500 artificial "child" sequences was compared to the original, unaltered parent sequence.  
+During each comparison, we calculated the three core metrics used by MASV to quantify sequence dissimilarity.  
+*	Perfect k-mer difference (d[p]): The absolute difference in counts of 'perfect' k-mers (i.e., 'AA', 'CC', 'GG', 'TT').
+*	Imperfect k-mer difference (d[im]): The absolute difference in counts of all other 'imperfect' k-mers (e.g., 'AC', 'AT', 'CA', etc.).
+*	Net difference (d[net]): The value of the imperfect k-mer difference minus the perfect k-mer difference (d[im]−d[p]).   
 
-The maximum observed distortion from a single nucleotide error defined the base thresholds :
-*  Max Perfect k-mer difference (d[p]): 4 
-* Max Imperfect k-mer difference (d[im]): 4 
-* Max Net difference (d[net]): 2
+**Result**: The maximum observed distortion from a single nucleotide error defined the base thresholds.
+* Max d[p]: 4 
+* Max d[im]: 4 
+* Max d[net]: 2
 
-Therefore, running MASV with -f 1 sets the filter to its most stringent, calibrated level, designed specifically to remove noise that is consistent with a single sequencing error.   
+Therefore, running MASV with -f 1 sets the filter to its most stringent, calibrated level, designed specifically to remove noise that is consistent with a single sequencing error.  
 ## Citation  
 If you use MASV in your research, please cite:  
 > MASV: A high-resolution and transparent Python script for denoising fungal amplicon sequence variants Vasilii Shapkin, Tomáš Větrovský, Miroslav Kolařík, Petr Kohout [Journal, Year]
