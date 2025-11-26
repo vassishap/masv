@@ -1,4 +1,4 @@
-# MASV (current version 1.0.0)
+# MASV (current version 1.0.1)
 ## A high-resolution and transparent Python script for denoising amplicon sequence variants
 MASV is a lightweight, transparent Python script for high-resolution denoising of amplicon sequencing data. It is designed to efficiently separate true, low-abundance sequence variants from sequencing noise. 
 >  This script was originally designed for analsys of the data coming from Illumina based sequencing of fungal ITS region. It is particularly well-suited for high-resolution analyses, such as deep sequencing of single organisms from cultures or herbarium specimens, where the goal is to resolve the full spectrum of intra-species and allelic variation.
