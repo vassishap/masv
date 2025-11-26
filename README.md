@@ -76,7 +76,7 @@ Therefore, running MASV with -f 1 sets the filter to its most stringent, calibra
 
 Long-read sequencing technologies (e.g., PacBio, Oxford Nanopore) possess substantially different error profiles and rates. Direct application of MASV to data from these or other non-Illumina platforms will likely result in suboptimal performance.
 
-Recommendation: To maintain optimal resolution and accuracy when applying MASV to non-Illumina data, the platform-specific parameters (e.g., abundance-ratio, k-mer thresholds) must be re-evaluated and adjusted.
+Recommendation: To maintain optimal resolution and accuracy when applying MASV to non-Illumina data, the platform-specific parameters (e.g., abundance-ratio, k-mer thresholds) should be re-evaluated and adjusted.
 
 ## Citation  
 If you use MASV in your research, please cite:  
