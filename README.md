@@ -10,7 +10,7 @@ The script is written for Python 3 and only uses standard libraries.
 No installation is required. MASV is a single standalone script.  
 Simply download the masv101.py file.  
 ## General workflow  
-![My Project Logo](./logo_masv.png)  
+![My Project Logo](./wf_masv.png)  
 > Full information on MASV's algorithm workflow can be found in this publication: link
 ## Usage
 Run the script from your terminal. The only required arguments is the input FASTA file (-i).
