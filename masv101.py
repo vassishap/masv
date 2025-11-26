@@ -1,8 +1,8 @@
 # ######################################################################################
 #
-# masv100.py
+# masv101.py
 #
-# Version: MASV v.1.0.0
+# Version: MASV v.1.0.1
 #
 # Description:
 #   This script performs denoising of sequencing data from a FASTA file.
@@ -11,11 +11,13 @@
 #   and abundance ratios.
 #
 # Usage:
-#   python fast_denoise.py -i <input.fasta> -f <degree_of_freedom>
+#   python masv101.py -i <input.fasta> -f <degree_of_freedom> -a <abundance_ratio> -s <save_spurious_as_variant>
 #
 # Arguments:
 #   -i, --input_fasta: Path to the input FASTA file.
 #   -f, --freedom: An integer representing the degree of freedom for noise filtering.
+#   -a, --abundance_ratio: A float representing the minimum abundance ratio (parent/noise) required for filtering.
+#   -s, --save_spurious: A boolean flag (True/False) to save sequences classified as 'SPURIOUS VARIANT' to the variants output file.
 #
 # ######################################################################################
 
@@ -24,12 +26,18 @@ from collections import Counter
 
 # --- Argument Parsing ---
 # Sets up the command-line interface for the user to provide input files and parameters.
-parser = argparse.ArgumentParser(description="MASV v.5.3.0: A high-resolution denoising script for amplicon data.")
+parser = argparse.ArgumentParser(description="MASV v.1.0.1: A high-resolution denoising script for amplicon data.")
 parser.add_argument('-i', dest='input_fasta', type=str, required=True,
                     help='Path to the input FASTA file.')
-parser.add_argument('-f', dest='freedom', type=str, required=True,
+parser.add_argument('-f', dest='freedom', type=int, required=False, default=1,
                     help="Degree of freedom (integer). A multiplier for the denoising thresholds. "
                          "'-f 1' is the most stringent (default). '-f 2' is more lenient, etc.")
+parser.add_argument('-a', dest='abundance_ratio', type=float, required=False, default=1.45,
+                    help="Minimum abundance ratio (Parent Sequence Size / Noise Sequence Size) "
+                         "required to classify a sequence as noise. Default is 1.45.")
+parser.add_argument('-s', dest='save_spurious', type=lambda x: (x.lower() == 'true'), required=False, default=False,
+                    help="Boolean flag (True/False). If True, singleton sequences classified as 'SPURIOUS VARIANT' "
+                         "are saved to the 'variants.fa' file. If False, they are saved to 'noise.fa'. Default is False.")
 args = parser.parse_args()
 
 
@@ -180,27 +188,25 @@ def sort_variants(seq1, seq2):
         seq1 (Sequence): The more abundant sequence (potential parent).
         seq2 (Sequence): The less abundant sequence (potential noisy variant).
     """
-    global variants, noise, filtered, sequences, count
+    global variants, noise, filtered, sequences, count, fx, ax
 
     # Condition 1: Length difference must be at most 1 base.
     if abs(seq1.length - seq2.length) <= 1:
-        # Condition 2: Abundance ratio must be significant (parent must be >= 1.45x more abundant).
-        if seq1.size / seq2.size >= 1.45:
+        # Condition 2: Abundance ratio must be significant (parent must be >= ax more abundant).
+        # Use the global abundance ratio 'ax' (from -a argument)
+        if seq1.size / seq2.size >= ax:
             mismatch_count = seq1.compare_kmer_profiles(seq2)
             # Precompute mismatch values for clarity
             p = mismatch_count[1]   # Perfect k-mer mismatch
             im = mismatch_count[2]  # Imperfect k-mer mismatch
             imp = im - p            # Difference between imperfect and perfect mismatches
             len_diff = abs(seq1.length - seq2.length)
-
             # Condition 3: K-mer profile differences must be within thresholds defined by freedom factor `fx`.
-            if p <= 4 * fx and im <= 4 * fx and imp <= 2 * fx and len_diff <= 1:
-                # Re-check abundance ratio as a final confirmation
-                if seq1.size / seq2.size >= 1.45:
-                    # If all conditions are met, classify seq2 as noise
-                    noise[seq2.title] = seq2.sequence
-                    filtered[seq2.title] = [seq2.title, seq1.title, "NOISY VARIANT", p, im, len_diff]
-                    count = count + 1
+            if p <= 4 * fx and im <= 4 * fx and imp <= 2 * fx:
+                # If all conditions are met, classify seq2 as noise
+                noise[seq2.title] = seq2.sequence
+                filtered[seq2.title] = [seq2.title, seq1.title, "NOISY VARIANT", p, im, len_diff]
+                count = count + 1
 
 
 def write_results(variants, noise, filtered):
@@ -260,12 +266,16 @@ def progress_bar(i):
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    print('\nscript MASV v.1.0.0')
+    print('\nscript MASV v.1.0.1')
     start_time = time.time()
 
     # Get arguments from command line
     input_fasta = args.input_fasta
     fx = int(args.freedom)
+    # Get the new abundance ratio argument
+    ax = args.abundance_ratio
+    # Get the new spurious variant saving flag
+    save_spurious = args.save_spurious
 
     # Step 1: Dereplicate the input FASTA file
     uniq_fasta = dereplicate_fasta(input_fasta)
@@ -308,7 +318,14 @@ if __name__ == "__main__":
     # Any sequence not classified as a variant or noise is considered a "spurious variant"
     for seq1 in sequences:
         if seq1.title not in filtered.keys():
-            noise[seq1.title] = seq1.sequence
+            # Use the 'save_spurious' flag (-s argument) to decide where to save the sequence
+            if save_spurious:
+                # Save to variants output
+                variants[seq1.title] = seq1.sequence
+            else:
+                # Save to noise output (default behavior)
+                noise[seq1.title] = seq1.sequence
+            # The classification in the table remains the same
             filtered[seq1.title] = [seq1.title, '*', "SPURIOUS VARIANT", '*', '*', '*']
 
     # Step 5: Write all results to output files
