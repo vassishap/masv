@@ -55,7 +55,7 @@ A FASTA file containing all sequences classified as "NOISY VARIANT".
 The "transparency report." This is a tab-delimited log file detailing the classification for every unique sequence.
 > It lists the sequence's final description ("VARIANT", "NOISY VARIANT", "SPURIOUS VARIANT"), its closest neighbor (if any), and the perfect k-mer, imperfect k-mer, and length difference metrics used for the decision.  
 
-## A note on thresholds (-f parameter)
+## A note on thresholds (-f ans -a parameters)
 
 The core thresholds (4, 4, 2) used by MASV are not arbitrary. They were empirically derived from an *in silico* simulation (see details in the publication).  
 **Method**: 1,500 "child" sequences were generated from a "parent" *Russula* sp. ITS2 sequence.  Each child contained exactly one random SNP (n=750) or InDel (n=750).  
