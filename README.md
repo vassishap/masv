@@ -80,5 +80,5 @@ Recommendation: To maintain optimal resolution and accuracy when applying MASV t
 
 ## Citation  
 If you use MASV in your research, please cite:  
-> MASV: A high-resolution and transparent Python script for denoising fungal amplicon sequence variants Vasilii Shapkin, Tomáš Větrovský, Miroslav Kolařík, Petr Kohout [Journal, Year]
+> MASV: A high-resolution and transparent Python script for denoising fungal amplicon sequence variants Vasilii Shapkin, Miroslav Kolařík, Petr Kohout, Tomáš Větrovský [Journal, Year]
 
