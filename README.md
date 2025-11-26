@@ -1,7 +1,10 @@
 # MASV (current version 1.0.1)
 ## A high-resolution and transparent Python script for denoising amplicon sequence variants
 MASV is a lightweight, transparent Python script for high-resolution denoising of amplicon sequencing data. It is designed to efficiently separate true, low-abundance sequence variants from sequencing noise. 
->  This script was originally designed for analsys of the data coming from Illumina based sequencing of fungal ITS region. It is particularly well-suited for high-resolution analyses, such as deep sequencing of single organisms from cultures or herbarium specimens, where the goal is to resolve the full spectrum of intra-species and allelic variation.
+>  This script was originally designed for analsys of the data coming from Illumina based sequencing of fungal ITS region. However, the core algorithm is not marker-specific and can be used for analyzing amplicon-based HTS data from any molecular marker or organism.
+
+It is particularly well-suited for high-resolution analyses, such as deep sequencing of single organisms from cultures or herbarium specimens, where the goal is to resolve the full spectrum of intra-species and allelic variation.
+
 ## Installation
 The script is written for Python 3 and only uses standard libraries.  
 No installation is required. MASV is a single standalone script.  
@@ -33,7 +36,7 @@ python masv101.py -i sample_data.fasta -f 1 -a 1.45 -s False
 ```
 
 **Singletons Preservation (-s flag)**  
-The -s True option can be used to preserve unclassified singleton sequences by writing them to the variants.fa output file.
+The -s True option can be used to preserve unclassified singleton sequences ("SPURIOUS VARIANT") by writing them to the variants.fa output file.
 
 Example to preserve singletons:
 ```bash
