@@ -90,6 +90,8 @@ class Sequence:
             # Ensure all characters in the k-mer are valid DNA bases
             if all(c in valid_chars for c in kmer):
                 kmers[kmer] = kmers.get(kmer, 0) + 1
+            else:
+              raise ValueError(f"Error processing {self.title}: Ambiguous nucleotide detected.")
         return kmers
 
     def compare_kmer_profiles(self, other):
