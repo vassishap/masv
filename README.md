@@ -54,9 +54,9 @@ A demo is coming soon.
 
 <p align="center">
   <a href="docs/img/masv-workflow.png">
-    <img src="docs/img/masv-workflow-1600.png" width="100%" alt="MASV workflow: 1 data ingestion and sorting, 2 k-mer profiling, 3 MASV algorithm, 4 binary partition and mass accumulation, 5 final classification">
+    <img src="docs/img/masv-workflow.png" width="100%" alt="MASV workflow: 1 data ingestion and sorting, 2 k-mer profiling, 3 MASV algorithm, 4 binary partition and mass accumulation, 5 final classification">
   </a>
-  <br><sub>The default ax is 2. Click for the full-resolution figure.</sub>
+  <br><sub>The default ax is 2.</sub>
 </p>
 
 1. **Ingest and sort.** MASV dereplicates the reads and sorts the unique sequences from most to least abundant.
@@ -73,9 +73,9 @@ A demo is coming soon.
 
 <p align="center">
   <a href="docs/img/masv-sequence-space.png">
-    <img src="docs/img/masv-sequence-space-1600.png" width="100%" alt="MASV in sequence space: how the abundance ratio ax decides which sequences are ASVs and which are noise">
+    <img src="docs/img/masv-sequence-space.png" width="100%" alt="MASV in sequence space: how the abundance ratio ax decides which sequences are ASVs and which are noise">
   </a>
-  <br><sub>The default ax is 2. Click for the full-resolution figure.</sub>
+  <br><sub>The default ax is 2.</sub>
 </p>
 
 `ax` (`-a`) is the setting with the most influence on the result. **Raising ax** keeps more secondary variants as ASVs, along with their own noise. **Lowering ax** merges them into their dominant parent. Even so, when a parent is very abundant, its close neighbors stay noise until `ax` is larger than their abundance ratio to that parent. That's why it pays to try a few values on your own data.
