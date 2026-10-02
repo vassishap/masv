@@ -11,8 +11,8 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
+#include <iomanip>
 
-// --- Global Structures & Config ---
 const int PERFECT_IDX[] = {0, 5, 10, 15};
 const int IMPERFECT_IDX[] = {1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14};
 
@@ -41,7 +41,13 @@ struct SequenceData {
     std::vector<int> kmers;
 };
 
-// --- Helper Functions ---
+struct AdjEdge {
+    int target;
+    int p_sum;
+    int im_sum;
+    int len_diff;
+};
+
 std::vector<int> generate_kmer_vector(const std::string& seq, const std::string& title) {
     std::vector<int> vector(16, 0);
     for (char c : seq) {
@@ -59,8 +65,10 @@ std::vector<int> generate_kmer_vector(const std::string& seq, const std::string&
     return vector;
 }
 
-std::vector<SequenceData> dereplicate_fasta(const std::string& filename) {
+// Count one read per record, or the header's size= value when it is present.
+std::vector<SequenceData> parse_fasta(const std::string& filename) {
     std::unordered_map<std::string, int> seq_counter;
+    std::unordered_map<std::string, std::string> original_titles;
     std::vector<std::string> order;
     
     std::ifstream file(filename);
@@ -69,27 +77,53 @@ std::vector<SequenceData> dereplicate_fasta(const std::string& filename) {
         exit(1);
     }
 
-    std::string line, current_seq = "";
+    std::string line, current_seq = "", current_title = "";
     int total_count = 0;
 
     while (std::getline(file, line)) {
         if (line.empty()) continue;
         if (line[0] == '>') {
             if (!current_seq.empty()) {
-                if (seq_counter.find(current_seq) == seq_counter.end()) order.push_back(current_seq);
-                seq_counter[current_seq]++;
-                total_count++;
+                if (seq_counter.find(current_seq) == seq_counter.end()) {
+                    order.push_back(current_seq);
+                    original_titles[current_seq] = current_title;
+                }
+                
+                size_t size_pos = current_title.find("size=");
+                if (size_pos != std::string::npos) {
+                    size_t end_pos = current_title.find(';', size_pos);
+                    if (end_pos == std::string::npos) end_pos = current_title.length();
+                    int parsed_size = std::stoi(current_title.substr(size_pos + 5, end_pos - (size_pos + 5)));
+                    seq_counter[current_seq] += parsed_size;
+                    total_count += parsed_size;
+                } else {
+                    seq_counter[current_seq]++;
+                    total_count++;
+                }
                 current_seq.clear();
             }
+            current_title = line.substr(1);
         } else {
             for (char &c : line) c = toupper(c);
             current_seq += line;
         }
     }
     if (!current_seq.empty()) {
-        if (seq_counter.find(current_seq) == seq_counter.end()) order.push_back(current_seq);
-        seq_counter[current_seq]++;
-        total_count++;
+        if (seq_counter.find(current_seq) == seq_counter.end()) {
+            order.push_back(current_seq);
+            original_titles[current_seq] = current_title;
+        }
+        size_t size_pos = current_title.find("size=");
+        if (size_pos != std::string::npos) {
+            size_t end_pos = current_title.find(';', size_pos);
+            if (end_pos == std::string::npos) end_pos = current_title.length();
+            int parsed_size = std::stoi(current_title.substr(size_pos + 5, end_pos - (size_pos + 5)));
+            seq_counter[current_seq] += parsed_size;
+            total_count += parsed_size;
+        } else {
+            seq_counter[current_seq]++;
+            total_count++;
+        }
     }
     file.close();
 
@@ -98,6 +132,7 @@ std::vector<SequenceData> dereplicate_fasta(const std::string& filename) {
     for (const auto& seq : order) {
         sorted_seqs.push_back({seq, seq_counter[seq]});
     }
+    
     std::sort(sorted_seqs.begin(), sorted_seqs.end(), [](const auto& a, const auto& b) {
         return a.second > b.second;
     });
@@ -105,40 +140,35 @@ std::vector<SequenceData> dereplicate_fasta(const std::string& filename) {
     std::vector<SequenceData> data;
     data.reserve(sorted_seqs.size());
     for (size_t i = 0; i < sorted_seqs.size(); ++i) {
-        char title_buf[64];
-        sprintf(title_buf, "Uniq%04zu;size=%d;", i + 1, sorted_seqs[i].second);
-        
         SequenceData sd;
-        sd.title = std::string(title_buf);
+        std::string orig_title = original_titles[sorted_seqs[i].first];
+        
+        if (orig_title.find("size=") != std::string::npos) {
+            sd.title = orig_title; 
+        } else {
+            sd.title = orig_title + ";size=" + std::to_string(sorted_seqs[i].second) + ";";
+        }
+        
         sd.seq = sorted_seqs[i].first;
         sd.size = sorted_seqs[i].second;
         sd.length = static_cast<int>(sd.seq.length());
         data.push_back(std::move(sd));
     }
 
-    std::cout << "Total input sequences: " << total_count << "\n";
-    std::cout << "Dereplicated sequences: " << data.size() << "\n";
+    std::cout << total_count << " seqs, " << data.size() << " uniques\n";
     return data;
 }
 
-// Global outputs protected by a single Mutex (Only used when a match is actually found)
-std::mutex output_mutex;
+// Classification results are keyed by sequence title.
 std::unordered_map<std::string, std::vector<std::string>> filtered_map;
 std::unordered_map<std::string, std::string> variants_map;
 std::unordered_map<std::string, std::string> noise_map;
 std::unordered_map<std::string, int> weights_map;
 
-struct NoiseMeta {
-    int target_idx;
-    int p_sum;
-    int im_sum;
-    int len_diff;
-};
-
 int main(int argc, char* argv[]) {
     std::string input_fasta = "";
     int fx = 1;
-    float ax = 1.45f;
+    float ax = 2.0f;
     bool save_spurious = false;
     int num_threads = 2;
 
@@ -156,14 +186,14 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    std::cout << "\nMASV v.1.0.1 (Multi-Threaded C++ Engine)\n";
+    std::cout << "\nMASV 2.0.0\n";
     auto start_time = std::chrono::high_resolution_clock::now();
 
-    auto dataset = dereplicate_fasta(input_fasta);
+    auto dataset = parse_fasta(input_fasta);
     size_t N = dataset.size();
     if (N == 0) return 0;
 
-    std::cout << "Generating K-mer feature profiles across " << num_threads << " thread(s)...\n";
+    std::cout << "Counting k-mers...\n";
     std::vector<std::thread> kmer_threads;
     std::atomic<size_t> kmer_index(0);
 
@@ -178,19 +208,15 @@ int main(int argc, char* argv[]) {
     }
     for (auto& th : kmer_threads) th.join();
 
-    std::cout << "Building algorithmic lookup buckets...\n";
+    std::cout << "Indexing...\n";
     std::unordered_map<int, std::vector<int>> length_buckets;
     for (int i = 0; i < static_cast<int>(N); ++i) {
         length_buckets[dataset[i].length].push_back(i);
     }
 
-    std::cout << "Identifying sequence variants...\n";
-    
-    // THE FIX: Lock-Free Atomic Array
-    std::unique_ptr<std::atomic<bool>[]> active(new std::atomic<bool>[N]);
-    for(size_t i = 0; i < N; ++i) {
-        active[i].store(true, std::memory_order_relaxed);
-    }
+    std::cout << "Denoising\n";
+    std::vector<int> parent(N, -1);
+    std::vector<AdjEdge> best_edge(N);
 
     std::atomic<size_t> main_index(0);
     std::atomic<size_t> progress_counter(0);
@@ -198,53 +224,41 @@ int main(int argc, char* argv[]) {
 
     for (int t = 0; t < num_threads; ++t) {
         worker_threads.emplace_back([&]() {
-            
-            // THE FIX: Pre-allocate memory ONCE per thread, outside the loop
             std::vector<int> candidates;
-            candidates.reserve(10000); 
-            std::vector<size_t> flagged_noise_indices;
-            flagged_noise_indices.reserve(10000);
-            std::vector<NoiseMeta> noise_metadata;
-            noise_metadata.reserve(10000);
+            candidates.reserve(10000);
 
             while (true) {
                 size_t i = main_index.fetch_add(1, std::memory_order_relaxed);
                 if (i >= N) break;
 
-                // Ultra-fast lock-free read
-                if (!active[i].load(std::memory_order_relaxed)) {
-                    progress_counter.fetch_add(1, std::memory_order_relaxed);
-                    continue;
-                }
-
                 candidates.clear();
-                flagged_noise_indices.clear();
-                noise_metadata.clear();
-
                 int L_i = dataset[i].length;
+
+                // Candidates: index j < i (at least as abundant) and length within +/-1 nt.
                 for (int target_L = L_i - 1; target_L <= L_i + 1; ++target_L) {
                     auto it = length_buckets.find(target_L);
                     if (it != length_buckets.end()) {
-                        for (int idx : it->second) {
-                            if (idx > static_cast<int>(i)) candidates.push_back(idx);
+                        for (int j : it->second) {
+                            if (j < static_cast<int>(i)) {
+                                candidates.push_back(j);
+                            }
                         }
                     }
                 }
 
-                int loop_count = 0;
+                std::sort(candidates.begin(), candidates.end());
 
-                for (int target_idx : candidates) {
-                    // Ultra-fast lock-free read
-                    if (!active[target_idx].load(std::memory_order_relaxed)) continue;
+                int best_j = -1;
+                AdjEdge temp_edge = {-1, 0, 0, 0};
 
-                    if ((static_cast<float>(dataset[i].size) / dataset[target_idx].size) < ax) continue;
+                for (int j : candidates) {
+                    if ((static_cast<float>(dataset[j].size) / dataset[i].size) < ax) continue;
 
-                    int p_sum = 0;
-                    int im_sum = 0;
+                    int p_sum = 0, im_sum = 0;
                     bool failed = false;
 
                     for (int k = 0; k < 16; ++k) {
-                        int diff = std::abs(dataset[i].kmers[k] - dataset[target_idx].kmers[k]);
+                        int diff = std::abs(dataset[i].kmers[k] - dataset[j].kmers[k]);
                         if (k == 0 || k == 5 || k == 10 || k == 15) {
                             p_sum += diff;
                             if (p_sum > 4 * fx) { failed = true; break; } 
@@ -253,57 +267,69 @@ int main(int argc, char* argv[]) {
                             if (im_sum > 4 * fx) { failed = true; break; } 
                         }
                     }
-                    if (failed || (im_sum - p_sum) > 2 * fx) continue;
-
-                    flagged_noise_indices.push_back(target_idx);
-                    int len_diff = std::abs(dataset[i].length - dataset[target_idx].length);
-                    noise_metadata.push_back({target_idx, p_sum, im_sum, len_diff});
-                    loop_count++;
+                    
+                    if (!failed && (im_sum - p_sum) <= 2 * fx) {
+                        best_j = j;
+                        temp_edge = {j, p_sum, im_sum, std::abs(L_i - dataset[j].length)};
+                        break; 
+                    }
                 }
 
-                // Ultra-fast lock-free write (Deactivate noise sequences immediately)
-                for (size_t idx : flagged_noise_indices) {
-                    active[idx].store(false, std::memory_order_relaxed);
-                }
-
-                // Only lock when writing confirmed variants to the global dictionary
-                if (!noise_metadata.empty() || dataset[i].size >= 2) {
-                    std::lock_guard<std::mutex> lock(output_mutex);
-                    weights_map[dataset[i].title] = loop_count;
-
-                    for (const auto& meta : noise_metadata) {
-                        std::string t_title = dataset[meta.target_idx].title;
-                        noise_map[t_title] = dataset[meta.target_idx].seq;
-                        filtered_map[t_title] = {t_title, dataset[i].title, "NOISY VARIANT", std::to_string(meta.p_sum), std::to_string(meta.im_sum), std::to_string(meta.len_diff)};
-                    }
-
-                    if (dataset[i].size >= 2) {
-                        variants_map[dataset[i].title] = dataset[i].seq;
-                        filtered_map[dataset[i].title] = {dataset[i].title, "*", "VARIANT", "*", "*", "*"};
-                    }
+                if (best_j != -1) {
+                    parent[i] = best_j;
+                    best_edge[i] = temp_edge;
                 }
 
                 size_t done = progress_counter.fetch_add(1, std::memory_order_relaxed) + 1;
                 if (done % std::max((size_t)1, N / 100) == 0 || done == N) {
-                    std::cout << "\rProcessing updates: " << (done * 100 / N) << "% Completed." << std::flush;
+                    float pct = (static_cast<float>(done) * 100.0f) / N;
+                    std::cout << "\r  " << std::fixed << std::setprecision(1) << pct << "% " << std::flush;
                 }
             }
         });
     }
     for (auto& th : worker_threads) th.join();
+    std::cout << "\n";
+
+    std::vector<bool> is_variant(N, true);
+    std::vector<int> direct_noise_mass(N, 0);
 
     for (size_t i = 0; i < N; ++i) {
-        if (filtered_map.find(dataset[i].title) == filtered_map.end()) {
-            if (save_spurious) {
-                variants_map[dataset[i].title] = dataset[i].seq;
-            } else {
-                noise_map[dataset[i].title] = dataset[i].seq;
-            }
-            filtered_map[dataset[i].title] = {dataset[i].title, "*", "SPURIOUS VARIANT", "*", "*", "*"};
+        if (parent[i] != -1) {
+            is_variant[i] = false;
+            direct_noise_mass[parent[i]] += dataset[i].size;
         }
     }
 
-    std::cout << "\nWriting data outputs to files...\n";
+    std::cout << "Writing outputs\n";
+    for (size_t i = 0; i < N; ++i) {
+        std::string t_title = dataset[i].title;
+
+        if (is_variant[i]) {
+            if (!save_spurious && dataset[i].size == 1 && direct_noise_mass[i] == 0) {
+                noise_map[t_title] = dataset[i].seq;
+                filtered_map[t_title] = {t_title, "*", "SPURIOUS VARIANT", "*", "*", "*"};
+            } else {
+                variants_map[t_title] = dataset[i].seq;
+                weights_map[t_title] = direct_noise_mass[i]; 
+                filtered_map[t_title] = {t_title, "*", "VARIANT", "*", "*", "*"};
+            }
+        } else {
+            noise_map[t_title] = dataset[i].seq;
+            int p_idx = parent[i];
+            std::string rep_title = dataset[p_idx].title;
+            
+            filtered_map[t_title] = {
+                t_title, 
+                rep_title, 
+                "NOISY VARIANT", 
+                std::to_string(best_edge[i].p_sum), 
+                std::to_string(best_edge[i].im_sum), 
+                std::to_string(best_edge[i].len_diff)
+            };
+        }
+    }
+
     std::ofstream tab_file("asv_tab.txt");
     tab_file << "title\tclosest neighbor(s)\tdescription\tperfect k-mer\timperfect k-mer\tlength difference\n";
     for (size_t i = 0; i < N; ++i) {
@@ -319,7 +345,7 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < N; ++i) {
         auto it = variants_map.find(dataset[i].title);
         if (it != variants_map.end()) {
-            var_file << ">" << it->first << "neighbors=" << weights_map[it->first] << ";\n" << it->second << "\n";
+            var_file << ">" << it->first << "noise=" << weights_map[it->first] << ";\n" << it->second << "\n";
         }
     }
     var_file.close();
@@ -336,8 +362,8 @@ int main(int argc, char* argv[]) {
     auto end_time = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> total_time = end_time - start_time;
     
-    std::cout << "\nDetected sequence variants: " << variants_map.size() << "\n";
-    std::cout << "Script execution time: " << total_time.count() << " seconds.\n\n";
+    std::cout << variants_map.size() << " ASVs\n";
+    std::cout << "Time " << std::fixed << std::setprecision(1) << total_time.count() << "s\n\n";
 
     return 0;
 }
