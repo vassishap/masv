@@ -1,84 +1,136 @@
-# MASV (current version 1.0.1)
-## A high-resolution and transparent Python script for denoising amplicon sequence variants
-MASV is a lightweight, transparent Python script for high-resolution denoising of amplicon sequencing data. It is designed to efficiently separate true, low-abundance sequence variants from sequencing noise. 
->  This script was originally designed for analsys of the data coming from Illumina based sequencing of fungal ITS region. However, the core algorithm is not marker-specific and can be used for analyzing amplicon-based HTS data from any molecular marker or organism.
+<h1 align="center">MASV</h1>
 
-It is particularly well-suited for high-resolution analyses, such as deep sequencing of single organisms from cultures or herbarium specimens, where the goal is to resolve the full spectrum of intra-species and allelic variation.
+<p align="center">
+  <b>High-resolution, transparent denoising of amplicon sequence variants</b><br>
+  Separate true low-abundance variants from sequencing noise using k-mer profiles and abundance ratios.
+</p>
 
-## Installation
-The script is written for Python 3 and only uses standard libraries.  
-No installation is required. MASV is a single standalone script.  
-Simply download the masv101.py file.  
-## General workflow  
-![My Project Logo](./wf_masv.png)  
-> Full information on MASV's algorithm workflow can be found in this publication: link
-## Usage
-Run the script from your terminal. The only required arguments is the input FASTA file (-i).
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/vassishap/masv?color=blue" alt="License: GPL-3.0"></a>
+  <img src="https://img.shields.io/badge/C%2B%2B-17-00599C?logo=cplusplus&logoColor=white" alt="C++17">
+  <img src="https://img.shields.io/badge/version-2.0.0-informational" alt="Version 2.0.0">
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#choosing-ax">Choosing ax</a> ·
+  <a href="#parameters">Parameters</a> ·
+  <a href="#output-files">Outputs</a> ·
+  <a href="#citation">Citation</a>
+</p>
+
+---
+
+## Why MASV
+
+MASV separates real low-abundance sequence variants from sequencing noise. It is a good fit for high-resolution work, such as deep sequencing of single organisms from cultures or herbarium specimens, where you want to resolve the full range of intra-species and allelic variation.
+
+- **Transparent.** Every unique sequence gets a row in `asv_tab.txt` that shows its label, its parent when it has one, and the k-mer metrics behind the decision.
+- **Lightweight.** MASV 2.0.0 is one C++17 source file. Build it with `g++`; there are no libraries to install.
+- **Calibrated.** The k-mer thresholds come from an *in silico* single-error simulation. They aren't arbitrary (see [thresholds](#a-note-on-thresholds)).
+- **Marker-agnostic.** MASV was built for Illumina sequencing of the fungal ITS region, but the core algorithm doesn't depend on the marker. You can use it on amplicon HTS data from any molecular marker or organism.
+
+## Quick start
+
+Build [`masv.cpp`](masv.cpp) and run it on a FASTA file of reads:
+
 ```bash
-python masv101.py -i <input.fasta>
-```
-**Arguments**  
--i, --input_fasta (Required): Path to the input FASTA file.
-
--f, --freedom (Optional): An integer representing the "degree of freedom" for noise filtering. This value acts as a multiplier on the core denoising thresholds.
-
->-f 1: (Default) The most stringent setting. It uses the empirically-derived base thresholds (see note below) designed to capture noise originating from a single nucleotide error.
->
->-f 2: A more lenient setting. It doubles the thresholds, allowing variants with approximately two nucleotide differences to be classified as noise.
-
--a, --abundance_ratio (Optional): A float representing the minimum abundance ratio (Parent Size / Noise Size) required to classify a sequence as noise. The default is 1.45.
-
--s, --save_spurious (Optional): A boolean flag (True/False) that controls the output of sequences classified as "SPURIOUS VARIANT" (singletons that did not match a parent). The default is False.
-
-Example of the default settings:
-```bash
-python masv101.py -i sample_data.fasta -f 1 -a 1.45 -s False
-```
-
-**Singletons Preservation (-s flag)**  
-The -s True option can be used to preserve unclassified singleton sequences ("SPURIOUS VARIANT") by writing them to the variants.fa output file.
-
-Example to preserve singletons:
-```bash
-python masv101.py -i sample_data.fasta -f 1 -a 1.45 -s True
+g++ -O3 -std=c++17 -pthread masv.cpp -o masv
+./masv -i input.fasta -t 4
 ```
 
-**Output Files**  
-MASV generates three files in the directory where it is run:  
-1. variants.fa  
-A FASTA file containing all sequences classified as "VARIANT".
-> The header of each sequence includes a neighbors=... tag, which counts how many "NOISY VARIANT" sequences were associated with it. Sequences classified as "SPURIOUS VARIANT" are also added here if the -s True flag is used.
-2. noise.fa  
-A FASTA file containing all sequences classified as "NOISY VARIANT".
-> Sequences classified as "SPURIOUS VARIANT" are added here if the -s False flag is used (default behavior).
-3. asv_tab.txt  
-The "transparency report." This is a tab-delimited log file detailing the classification for every unique sequence.
-> It lists the sequence's final description ("VARIANT", "NOISY VARIANT", "SPURIOUS VARIANT"), its closest neighbor (if any), and the perfect k-mer, imperfect k-mer, and length difference metrics used for the decision.  
+MASV dereplicates the file and sorts the unique sequences by abundance. Each FASTA record counts as one read, unless its header already contains `size=`, in which case that count is used. Identical sequences are merged, and the first header is kept. Sequences may contain only `A`, `C`, `G`, and `T` (any case). An ambiguous base stops the run with an error. The three result files are written to the current directory.
 
-## A note on thresholds (-f and -a parameters)
+Example with the defaults written out:
 
-The core thresholds (4, 4, 2) used by MASV are not arbitrary. They were empirically derived from an *in silico* simulation (see details in the publication).  
-**Method**: 1,500 "child" sequences were generated from a "parent" *Russula* sp. ITS2 sequence.  Each child contained exactly one random SNP (n=750) or InDel (n=750).  
-**Analysis**: Each of the 1,500 artificial "child" sequences was compared to the original, unaltered parent sequence.  
-During each comparison, we calculated the three core metrics used by MASV to quantify sequence dissimilarity.  
-*	Perfect k-mer difference (d[p]): The absolute difference in counts of 'perfect' k-mers (i.e., 'AA', 'CC', 'GG', 'TT').
-*	Imperfect k-mer difference (d[im]): The absolute difference in counts of all other 'imperfect' k-mers (e.g., 'AC', 'AT', 'CA', etc.).
-*	Net difference (d[net]): The value of the imperfect k-mer difference minus the perfect k-mer difference (d[im]−d[p]).   
+```bash
+./masv -i input.fasta -f 1 -a 1.45 -s False -t 2
+```
 
-**Result**: The maximum observed distortion from a single nucleotide error defined the base thresholds.
-* Max d[p]: 4 
-* Max d[im]: 4 
-* Max d[net]: 2
+## How it works
 
-Therefore, running MASV with -f 1 sets the filter to its most stringent, calibrated level, designed specifically to remove noise that is consistent with a single sequencing error.  
+<p align="center">
+  <a href="docs/img/masv-workflow.png">
+    <img src="docs/img/masv-workflow-1600.png" width="100%" alt="MASV workflow: 1 data ingestion and sorting, 2 k-mer profiling, 3 MASV algorithm, 4 binary partition and mass accumulation, 5 final classification">
+  </a>
+  <br><sub>Shown with ax = 2 as an example; the program default is 1.45. Click for the full-resolution figure.</sub>
+</p>
 
-**IMPORTANT**
+1. **Ingest and sort.** MASV dereplicates the reads and sorts the unique sequences from most to least abundant.
+2. **Profile.** Each sequence becomes a 16-slot dinucleotide count. Every base also increments its own homodimer (`AA`, `CC`, `GG`, `TT`), which is the same as doubling each base and then counting dimers.
+3. **Compare.** Each sequence looks for a parent among earlier sequences in that list (equally or more abundant) whose length is within ±1 nt. That length window stays ±1 nt at every value of `fx`. Candidates are tried from most abundant to least, and the first one that passes both barriers is the parent. The search is parallel (`-t` threads).
+    - **Abundance:** `size_parent / size_child ≥ ax`
+    - **K-mer:** perfect-dimer difference ≤ 4·fx, imperfect-dimer difference ≤ 4·fx, and (imperfect − perfect) ≤ 2·fx
+4. **Accumulate.** A sequence that found a parent is noise, and its abundance is added to that parent's noise mass. This sum runs one sequence at a time after the parallel search finishes.
+5. **Label.** A sequence with a parent is a `NOISY VARIANT`. A sequence with no parent is a `VARIANT`. A single read with no parent and noise mass 0 is a `SPURIOUS VARIANT` (with `-s True` it stays a `VARIANT`).
 
-Long-read sequencing technologies (e.g., PacBio, Oxford Nanopore) possess substantially different error profiles and rates. Direct application of MASV to data from these or other non-Illumina platforms will likely result in suboptimal performance.
+> The full algorithm is described in the publication (link to be added).
 
-Recommendation: To maintain optimal resolution and accuracy when applying MASV to non-Illumina data, the platform-specific parameters (e.g., abundance-ratio, k-mer thresholds) should be re-evaluated and adjusted.
+## Choosing ax
 
-## Citation  
-If you use MASV in your research, please cite:  
-> MASV: A high-resolution and transparent Python script for denoising fungal amplicon sequence variants Vasilii Shapkin, Miroslav Kolařík, Petr Kohout, Tomáš Větrovský [Journal, Year]
+<p align="center">
+  <a href="docs/img/masv-sequence-space.png">
+    <img src="docs/img/masv-sequence-space-1600.png" width="100%" alt="MASV in sequence space: how the abundance ratio ax decides which sequences are ASVs and which are noise">
+  </a>
+  <br><sub>Example with ax = 2. Click for the full-resolution figure.</sub>
+</p>
 
+`ax` (`-a`) is the setting with the most influence on the result. **Raising ax** keeps more secondary variants as ASVs, along with their own noise. **Lowering ax** merges them into their dominant parent. Even so, when a parent is very abundant, its close neighbors stay noise until `ax` is larger than their abundance ratio to that parent. That's why it pays to try a few values on your own data.
+
+The figures use **ax = 2** as an example. The `-a` default in the program is **1.45**.
+
+## Parameters
+
+| Flag | Meaning | Default |
+|---|---|---|
+| `-i` | Input FASTA file (**required**) | – |
+| `-f` | Degree of freedom (`fx`), an integer multiplier on the k-mer thresholds (4, 4, 2). `-f 1` is the strictest setting and targets noise from a single nucleotide error. `-f 2` doubles the thresholds, so variants about two differences away can count as noise. The ±1 nt length window is the same at every `fx`. | `1` |
+| `-a` | Abundance ratio (`ax`), the minimum *parent size / child size* needed to call a sequence noise | `1.45` |
+| `-s` | `True` or `False`. `True` keeps a single-read sequence that has no parent and no noise mass in `variants.fa`, labeled `VARIANT`. Any other value leaves it in `noise.fa`, labeled `SPURIOUS VARIANT`. Only the exact string `True` changes the default. | `False` |
+| `-t` | Worker threads for k-mer counting and the parent search | `2` |
+
+These are the only flags the program reads.
+
+## Output files
+
+MASV writes three files in the current directory. Sequence titles keep the first FASTA header. When that header has no `size=` field, MASV appends `;size=N;`, where `N` is the merged abundance. A header that already contains `size=` is kept as written, including when later copies of the same sequence add to its abundance.
+
+| File | Contents |
+|---|---|
+| `variants.fa` | Sequences labeled `VARIANT`. Each header is the sequence title with `noise=N;` appended. `N` is the total abundance of the `NOISY VARIANT` sequences that took this sequence as their direct parent. With `-s True`, parentless single-read sequences that accumulated no noise are written here too, with `noise=0;`. |
+| `noise.fa` | Sequences labeled `NOISY VARIANT`, plus `SPURIOUS VARIANT` singletons when `-s` is not `True` (the default). Each header is the sequence title alone. |
+| `asv_tab.txt` | Tab-separated report, one row per unique sequence, in abundance order. The header row is `title`, `closest neighbor(s)`, `description`, `perfect k-mer`, `imperfect k-mer`, `length difference`. `description` is `VARIANT`, `NOISY VARIANT`, or `SPURIOUS VARIANT`. For a `NOISY VARIANT`, the neighbor column is its parent title and the last three columns are the perfect-dimer difference, the imperfect-dimer difference, and the absolute length difference. For a `VARIANT` or `SPURIOUS VARIANT`, those four fields are `*`. |
+
+## A note on thresholds
+
+<details>
+<summary><b>Where the base thresholds (4, 4, 2) come from</b></summary>
+
+<br>
+
+The thresholds were derived empirically from an *in silico* simulation (see the publication for details).
+
+- **Method:** 1,500 "child" sequences were generated from a "parent" *Russula* sp. ITS2 sequence. Each child carried exactly one random SNP (n = 750) or InDel (n = 750).
+- **Analysis:** Each child was compared with the unaltered parent using three metrics:
+  - *Perfect k-mer difference* (d<sub>p</sub>): the absolute difference in counts of `AA`, `CC`, `GG`, `TT`
+  - *Imperfect k-mer difference* (d<sub>im</sub>): the absolute difference in counts of all other k-mers (`AC`, `AT`, `CA`, …)
+  - *Net difference* (d<sub>net</sub>): d<sub>im</sub> − d<sub>p</sub>
+- **Result:** The largest distortion a single nucleotide error caused set the base thresholds: max d<sub>p</sub> = 4, max d<sub>im</sub> = 4, max d<sub>net</sub> = 2.
+
+So `-f 1` sets the filter to its strictest calibrated level, aimed at noise consistent with a single sequencing error.
+
+</details>
+
+> [!IMPORTANT]
+> Long-read technologies (e.g. PacBio, Oxford Nanopore) have very different error profiles and rates. Using MASV directly on data from these or other non-Illumina platforms will likely give suboptimal results. Re-evaluate and adjust the platform-specific parameters (abundance ratio, k-mer thresholds) first.
+
+## Citation
+
+If you use MASV in your research, please cite:
+
+> Vasilii Shapkin, Miroslav Kolařík, Petr Kohout, Tomáš Větrovský. *MASV: A high-resolution and transparent Python script for denoising fungal amplicon sequence variants.* [Journal, Year]
+
+## License
+
+MASV is released under the [GNU General Public License v3.0](LICENSE).
