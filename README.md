@@ -45,8 +45,10 @@ MASV dereplicates the file and sorts the unique sequences by abundance. Each FAS
 Example with the defaults written out:
 
 ```bash
-./masv -i input.fasta -f 1 -a 1.45 -s False -t 2
+./masv -i input.fasta -f 1 -a 2 -s False -t 2
 ```
+
+A demo is coming soon.
 
 ## How it works
 
@@ -54,7 +56,7 @@ Example with the defaults written out:
   <a href="docs/img/masv-workflow.png">
     <img src="docs/img/masv-workflow-1600.png" width="100%" alt="MASV workflow: 1 data ingestion and sorting, 2 k-mer profiling, 3 MASV algorithm, 4 binary partition and mass accumulation, 5 final classification">
   </a>
-  <br><sub>Shown with ax = 2 as an example; the program default is 1.45. Click for the full-resolution figure.</sub>
+  <br><sub>The default ax is 2. Click for the full-resolution figure.</sub>
 </p>
 
 1. **Ingest and sort.** MASV dereplicates the reads and sorts the unique sequences from most to least abundant.
@@ -65,7 +67,7 @@ Example with the defaults written out:
 4. **Accumulate.** A sequence that found a parent is noise, and its abundance is added to that parent's noise mass. This sum runs one sequence at a time after the parallel search finishes.
 5. **Label.** A sequence with a parent is a `NOISY VARIANT`. A sequence with no parent is a `VARIANT`. A single read with no parent and noise mass 0 is a `SPURIOUS VARIANT` (with `-s True` it stays a `VARIANT`).
 
-> The full algorithm is described in the publication (link to be added).
+> The full algorithm will be described in the manuscript, which is in preparation.
 
 ## Choosing ax
 
@@ -73,12 +75,12 @@ Example with the defaults written out:
   <a href="docs/img/masv-sequence-space.png">
     <img src="docs/img/masv-sequence-space-1600.png" width="100%" alt="MASV in sequence space: how the abundance ratio ax decides which sequences are ASVs and which are noise">
   </a>
-  <br><sub>Example with ax = 2. Click for the full-resolution figure.</sub>
+  <br><sub>The default ax is 2. Click for the full-resolution figure.</sub>
 </p>
 
 `ax` (`-a`) is the setting with the most influence on the result. **Raising ax** keeps more secondary variants as ASVs, along with their own noise. **Lowering ax** merges them into their dominant parent. Even so, when a parent is very abundant, its close neighbors stay noise until `ax` is larger than their abundance ratio to that parent. That's why it pays to try a few values on your own data.
 
-The figures use **ax = 2** as an example. The `-a` default in the program is **1.45**.
+The default is **2**.
 
 ## Parameters
 
@@ -86,7 +88,7 @@ The figures use **ax = 2** as an example. The `-a` default in the program is **1
 |---|---|---|
 | `-i` | Input FASTA file (**required**) | – |
 | `-f` | Degree of freedom (`fx`), an integer multiplier on the k-mer thresholds (4, 4, 2). `-f 1` is the strictest setting and targets noise from a single nucleotide error. `-f 2` doubles the thresholds, so variants about two differences away can count as noise. The ±1 nt length window is the same at every `fx`. | `1` |
-| `-a` | Abundance ratio (`ax`), the minimum *parent size / child size* needed to call a sequence noise | `1.45` |
+| `-a` | Abundance ratio (`ax`), the minimum *parent size / child size* needed to call a sequence noise | `2` |
 | `-s` | `True` or `False`. `True` keeps a single-read sequence that has no parent and no noise mass in `variants.fa`, labeled `VARIANT`. Any other value leaves it in `noise.fa`, labeled `SPURIOUS VARIANT`. Only the exact string `True` changes the default. | `False` |
 | `-t` | Worker threads for k-mer counting and the parent search | `2` |
 
@@ -109,7 +111,7 @@ MASV writes three files in the current directory. Sequence titles keep the first
 
 <br>
 
-The thresholds were derived empirically from an *in silico* simulation (see the publication for details).
+The thresholds were derived empirically from an *in silico* simulation (see the manuscript for details).
 
 - **Method:** 1,500 "child" sequences were generated from a "parent" *Russula* sp. ITS2 sequence. Each child carried exactly one random SNP (n = 750) or InDel (n = 750).
 - **Analysis:** Each child was compared with the unaltered parent using three metrics:
@@ -129,7 +131,7 @@ So `-f 1` sets the filter to its strictest calibrated level, aimed at noise cons
 
 If you use MASV in your research, please cite:
 
-> Vasilii Shapkin, Miroslav Kolařík, Petr Kohout, Tomáš Větrovský. *MASV: A high-resolution and transparent Python script for denoising fungal amplicon sequence variants.* [Journal, Year]
+> Vasilii Shapkin, Miroslav Kolařík, Petr Kohout, Tomáš Větrovský. *MASV: A high-resolution and transparent Python script for denoising fungal amplicon sequence variants.* Manuscript in preparation.
 
 ## License
 

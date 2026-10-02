@@ -168,7 +168,7 @@ std::unordered_map<std::string, int> weights_map;
 int main(int argc, char* argv[]) {
     std::string input_fasta = "";
     int fx = 1;
-    float ax = 1.45f;
+    float ax = 2.0f;
     bool save_spurious = false;
     int num_threads = 2;
 
