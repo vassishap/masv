@@ -167,7 +167,6 @@ std::unordered_map<std::string, int> weights_map;
 
 int main(int argc, char* argv[]) {
     std::string input_fasta = "";
-    int fx = 1;
     float ax = 2.0f;
     bool save_spurious = false;
     int num_threads = 2;
@@ -175,14 +174,13 @@ int main(int argc, char* argv[]) {
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "-i" && i + 1 < argc) input_fasta = argv[++i];
-        else if (arg == "-f" && i + 1 < argc) fx = std::stoi(argv[++i]);
         else if (arg == "-a" && i + 1 < argc) ax = std::stof(argv[++i]);
         else if (arg == "-s" && i + 1 < argc) save_spurious = (std::string(argv[++i]) == "True");
         else if (arg == "-t" && i + 1 < argc) num_threads = std::stoi(argv[++i]);
     }
 
     if (input_fasta.empty()) {
-        std::cerr << "Usage: " << argv[0] << " -i <input.fasta> [-f freedom] [-a abundance] [-s True/False] [-t threads]\n";
+        std::cerr << "Usage: " << argv[0] << " -i <input.fasta> [-a abundance] [-s True/False] [-t threads]\n";
         return 1;
     }
 
@@ -261,14 +259,14 @@ int main(int argc, char* argv[]) {
                         int diff = std::abs(dataset[i].kmers[k] - dataset[j].kmers[k]);
                         if (k == 0 || k == 5 || k == 10 || k == 15) {
                             p_sum += diff;
-                            if (p_sum > 4 * fx) { failed = true; break; } 
+                            if (p_sum > 4) { failed = true; break; } 
                         } else {
                             im_sum += diff;
-                            if (im_sum > 4 * fx) { failed = true; break; } 
+                            if (im_sum > 4) { failed = true; break; } 
                         }
                     }
                     
-                    if (!failed && (im_sum - p_sum) <= 2 * fx) {
+                    if (!failed && (im_sum - p_sum) <= 2) {
                         best_j = j;
                         temp_edge = {j, p_sum, im_sum, std::abs(L_i - dataset[j].length)};
                         break; 

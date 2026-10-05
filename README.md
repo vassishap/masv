@@ -14,6 +14,7 @@
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
   <a href="#how-it-works">How it works</a> ·
+  <a href="#k-mer-thresholds">K-mer thresholds</a> ·
   <a href="#choosing-ax">Choosing ax</a> ·
   <a href="#parameters">Parameters</a> ·
   <a href="#output-files">Outputs</a> ·
@@ -28,7 +29,7 @@ MASV separates real low-abundance sequence variants from sequencing noise. It is
 
 - **Transparent.** Every unique sequence gets a row in `asv_tab.txt` that shows its label, its parent when it has one, and the k-mer metrics behind the decision.
 - **Lightweight.** MASV 2.0.0 is one C++17 source file. Build it with `g++`; there are no libraries to install.
-- **Calibrated.** The k-mer thresholds come from an *in silico* single-error simulation. They aren't arbitrary (see [thresholds](#a-note-on-thresholds)).
+- **Calibrated.** The k-mer limits are the worst case of one nucleotide error (see [k-mer thresholds](#k-mer-thresholds)).
 - **Marker-agnostic.** MASV was built for Illumina sequencing of the fungal ITS region, but the core algorithm doesn't depend on the marker. You can use it on amplicon HTS data from any molecular marker or organism.
 
 ## Quick start
@@ -45,7 +46,7 @@ MASV dereplicates the file and sorts the unique sequences by abundance. Each FAS
 Example with the defaults written out:
 
 ```bash
-./masv -i input.fasta -f 1 -a 2 -s False -t 2
+./masv -i input.fasta -a 2 -s False -t 2
 ```
 
 A demo is coming soon.
@@ -61,13 +62,26 @@ A demo is coming soon.
 
 1. **Ingest and sort.** MASV dereplicates the reads and sorts the unique sequences from most to least abundant.
 2. **Profile.** Each sequence becomes a 16-slot dinucleotide count. Every base also increments its own homodimer (`AA`, `CC`, `GG`, `TT`), which is the same as doubling each base and then counting dimers.
-3. **Compare.** Each sequence looks for a parent among earlier sequences in that list (equally or more abundant) whose length is within ±1 nt. That length window stays ±1 nt at every value of `fx`. Candidates are tried from most abundant to least, and the first one that passes both barriers is the parent. The search is parallel (`-t` threads).
+3. **Compare.** Each sequence looks for a parent among earlier sequences in that list (equally or more abundant) whose length is within ±1 nt. Candidates are tried from most abundant to least, and the first one that passes both barriers is the parent. The search is parallel (`-t` threads).
     - **Abundance:** `size_parent / size_child ≥ ax`
-    - **K-mer:** perfect-dimer difference ≤ 4·fx, imperfect-dimer difference ≤ 4·fx, and (imperfect − perfect) ≤ 2·fx
+    - **K-mer:** perfect-dimer difference ≤ 4, imperfect-dimer difference ≤ 4, and (imperfect − perfect) ≤ 2
 4. **Accumulate.** A sequence that found a parent is noise, and its abundance is added to that parent's noise mass. This sum runs one sequence at a time after the parallel search finishes.
 5. **Label.** A sequence with a parent is a `NOISY VARIANT`. A sequence with no parent is a `VARIANT`. A single read with no parent and noise mass 0 is a `SPURIOUS VARIANT` (with `-s True` it stays a `VARIANT`).
 
 > The full algorithm will be described in the manuscript, which is in preparation.
+
+## K-mer thresholds
+
+<p align="center">
+  <a href="docs/img/masv-kmer-calibration.png">
+    <img src="docs/img/masv-kmer-calibration.png" width="100%" alt="Calibration of the fixed k-mer limits: 1,500 single-error children of a Russula ITS2 sequence, with worst-case differences 4, 4, and 2">
+  </a>
+</p>
+
+The k-mer limits are fixed at 4, 4, and 2. A candidate passes only when the perfect-dimer difference is at most 4, the imperfect-dimer difference is at most 4, and (imperfect − perfect) is at most 2. Those values are the exact worst case of a single nucleotide error, measured on 750 random SNPs and 750 random indels of one *Russula* sp. ITS2 parent. They are not a command-line setting.
+
+> [!IMPORTANT]
+> Long-read technologies (e.g. PacBio, Oxford Nanopore) have very different error profiles and rates. These limits were set on Illumina single-error noise. Using MASV directly on data from these or other non-Illumina platforms will likely give suboptimal results. Re-evaluate the abundance ratio first.
 
 ## Choosing ax
 
@@ -87,7 +101,6 @@ The default is **2**.
 | Flag | Meaning | Default |
 |---|---|---|
 | `-i` | Input FASTA file (**required**) | – |
-| `-f` | Degree of freedom (`fx`), an integer multiplier on the k-mer thresholds (4, 4, 2). `-f 1` is the strictest setting and targets noise from a single nucleotide error. `-f 2` doubles the thresholds, so variants about two differences away can count as noise. The ±1 nt length window is the same at every `fx`. | `1` |
 | `-a` | Abundance ratio (`ax`), the minimum *parent size / child size* needed to call a sequence noise | `2` |
 | `-s` | `True` or `False`. `True` keeps a single-read sequence that has no parent and no noise mass in `variants.fa`, labeled `VARIANT`. Any other value leaves it in `noise.fa`, labeled `SPURIOUS VARIANT`. Only the exact string `True` changes the default. | `False` |
 | `-t` | Worker threads for k-mer counting and the parent search | `2` |
@@ -103,29 +116,6 @@ MASV writes three files in the current directory. Sequence titles keep the first
 | `variants.fa` | Sequences labeled `VARIANT`. Each header is the sequence title with `noise=N;` appended. `N` is the total abundance of the `NOISY VARIANT` sequences that took this sequence as their direct parent. With `-s True`, parentless single-read sequences that accumulated no noise are written here too, with `noise=0;`. |
 | `noise.fa` | Sequences labeled `NOISY VARIANT`, plus `SPURIOUS VARIANT` singletons when `-s` is not `True` (the default). Each header is the sequence title alone. |
 | `asv_tab.txt` | Tab-separated report, one row per unique sequence, in abundance order. The header row is `title`, `closest neighbor(s)`, `description`, `perfect k-mer`, `imperfect k-mer`, `length difference`. `description` is `VARIANT`, `NOISY VARIANT`, or `SPURIOUS VARIANT`. For a `NOISY VARIANT`, the neighbor column is its parent title and the last three columns are the perfect-dimer difference, the imperfect-dimer difference, and the absolute length difference. For a `VARIANT` or `SPURIOUS VARIANT`, those four fields are `*`. |
-
-## A note on thresholds
-
-<details>
-<summary><b>Where the base thresholds (4, 4, 2) come from</b></summary>
-
-<br>
-
-The thresholds were derived empirically from an *in silico* simulation (see the manuscript for details).
-
-- **Method:** 1,500 "child" sequences were generated from a "parent" *Russula* sp. ITS2 sequence. Each child carried exactly one random SNP (n = 750) or InDel (n = 750).
-- **Analysis:** Each child was compared with the unaltered parent using three metrics:
-  - *Perfect k-mer difference* (d<sub>p</sub>): the absolute difference in counts of `AA`, `CC`, `GG`, `TT`
-  - *Imperfect k-mer difference* (d<sub>im</sub>): the absolute difference in counts of all other k-mers (`AC`, `AT`, `CA`, …)
-  - *Net difference* (d<sub>net</sub>): d<sub>im</sub> − d<sub>p</sub>
-- **Result:** The largest distortion a single nucleotide error caused set the base thresholds: max d<sub>p</sub> = 4, max d<sub>im</sub> = 4, max d<sub>net</sub> = 2.
-
-So `-f 1` sets the filter to its strictest calibrated level, aimed at noise consistent with a single sequencing error.
-
-</details>
-
-> [!IMPORTANT]
-> Long-read technologies (e.g. PacBio, Oxford Nanopore) have very different error profiles and rates. Using MASV directly on data from these or other non-Illumina platforms will likely give suboptimal results. Re-evaluate and adjust the platform-specific parameters (abundance ratio, k-mer thresholds) first.
 
 ## Citation
 
