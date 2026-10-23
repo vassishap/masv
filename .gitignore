@@ -1,0 +1,7 @@
+# Build artifacts
+/masv
+*.o
+*.obj
+*.exe
+*.out
+a.out
