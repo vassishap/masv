@@ -13,6 +13,7 @@
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
+  <a href="#demo">Demo</a> ·
   <a href="#how-it-works">How it works</a> ·
   <a href="#k-mer-thresholds">K-mer thresholds</a> ·
   <a href="#choosing-ax">Choosing ax</a> ·
@@ -49,7 +50,16 @@ Example with the defaults written out:
 ./masv -i input.fasta -a 2 -s False -t 2
 ```
 
-A demo is coming soon.
+## Demo
+
+The demo files are in [`demo/`](https://github.com/vassishap/masv/tree/main/demo). Build `masv`, put that binary and `usearch` on your `PATH`, then:
+
+```bash
+g++ -O3 -std=c++17 -pthread masv.cpp -o masv
+cd demo && bash MASV_demo.bash
+```
+
+The script denoises the ITS and 16S unique reads at ax 2 and at the higher benchmark values (6 for ITS, 6.3 for 16S). Each of those runs is followed by a `usearch -uchime3_denovo` chimera check. `ITS_refs.fa` and `16S_refs.fa` are for the optional reference comparison, which is left commented out in the script.
 
 ## How it works
 
